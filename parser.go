@@ -48,6 +48,7 @@ func ParserPage() {
 			ParsingString(r)
 		} else {
 			Logging("Получили пустую строку", UrlXml)
+			DataTrades = time.Time{}
 		}
 	}
 }
@@ -55,6 +56,7 @@ func ParsingString(s string) {
 	var FileProt FileProtocols
 	if err := xml.Unmarshal([]byte(s), &FileProt); err != nil {
 		Logging("Ошибка при парсинге строки", err)
+		DataTrades = time.Time{}
 		return
 	}
 	var Dsn = fmt.Sprintf("%s:%s@/%s?charset=utf8&parseTime=true&readTimeout=60m&maxAllowedPacket=0&timeout=60m&writeTimeout=60m&autocommit=true&loc=Local", UserDb, PassDb, DbName)
@@ -64,9 +66,11 @@ func ParsingString(s string) {
 	db.SetConnMaxLifetime(time.Second * 3600)
 	if err != nil {
 		Logging("Ошибка подключения к БД", err)
+		DataTrades = time.Time{}
 	}
 	if len(FileProt.TradeList) == 0 {
 		Logging("Нет процедур в файле", UrlXml, s)
+		DataTrades = time.Time{}
 	}
 	if len(FileProt.TradeList) >= 500 {
 		DataTrades = getTimeMoscow(FileProt.TradeList[0].ChangeDate)
