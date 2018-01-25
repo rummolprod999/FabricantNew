@@ -89,6 +89,9 @@ func ParsingString(s string) {
 func ParsingTrade(t Trade, db *sql.DB) error {
 	TradeId := t.TradeId
 	if TradeId == "" {
+		TradeId = t.Id
+	}
+	if TradeId == "" {
 		Logging("Пустой идентификатор закупки")
 		return nil
 	}
