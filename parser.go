@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var DataTrades = time.Time{}
+
 func Parser() {
 	ParserPage()
 	//time.Sleep(time.Second * 10)
@@ -24,20 +26,31 @@ func ParserPage() {
 	}()
 	UrlXml = ""
 	if Count == 0 {
-		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&date=24.01.2018&time=13:00")
+		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions")
 	} else {
 		Lastdate := time.Now().AddDate(0, 0, -1*Count)
 		TStr := Lastdate.Format("02.01.2006")
 		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&date=%s", TStr)
 	}
 	r := DownloadPage(UrlXml)
+
 	if r != "" {
 		ParsingString(r)
 	} else {
 		Logging("Получили пустую строку", UrlXml)
 	}
+	for (DataTrades != time.Time{}) {
+		tm := fmt.Sprintf("%02d:%02d", DataTrades.Hour(), DataTrades.Minute())
+		dat := fmt.Sprintf("%02d.%02d.%d", DataTrades.Day(), DataTrades.Month(), DataTrades.Year())
+		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&date=%s&time=%s", dat, tm)
+		r := DownloadPage(UrlXml)
+		if r != "" {
+			ParsingString(r)
+		} else {
+			Logging("Получили пустую строку", UrlXml)
+		}
+	}
 }
-
 func ParsingString(s string) {
 	var FileProt FileProtocols
 	if err := xml.Unmarshal([]byte(s), &FileProt); err != nil {
@@ -54,6 +67,11 @@ func ParsingString(s string) {
 	}
 	if len(FileProt.TradeList) == 0 {
 		Logging("Нет процедур в файле", UrlXml, s)
+	}
+	if len(FileProt.TradeList) >= 500 {
+		DataTrades = getTimeMoscow(FileProt.TradeList[0].ChangeDate)
+	} else {
+		DataTrades = time.Time{}
 	}
 	for _, t := range FileProt.TradeList {
 		e := ParsingTrade(t, db)
@@ -72,6 +90,9 @@ func ParsingTrade(t Trade, db *sql.DB) error {
 	}
 	PublicationDate := getTimeMoscow(t.PublicationDate)
 	DateUpdated := getTimeMoscow(t.ChangeDate)
+	if (DateUpdated == time.Time{}) {
+		DateUpdated = PublicationDate
+	}
 	IdXml := t.Id
 	Version := 0
 	stmt, _ := db.Prepare(fmt.Sprintf("SELECT id_tender FROM %stender WHERE purchase_number = ? AND date_version = ? AND type_fz = ?", Prefix))
@@ -122,6 +143,12 @@ func ParsingTrade(t Trade, db *sql.DB) error {
 	Title := t.Title
 	CommonName := t.CommonName
 	PurchaseObjectInfo := strings.TrimSpace(fmt.Sprintf("%s %s", Title, CommonName))
+	//if len(t.Lots) > 0 {
+	//	if len(t.Lots[0].LotDataSubj) > 0 {
+	//		PurchaseObjectInfo = strings.TrimSpace(fmt.Sprintf("%s %s", PurchaseObjectInfo, t.Lots[0].LotDataSubj[0]))
+	//	}
+	//}
+
 	NoticeVersion := ""
 	PrintForm := Href
 	IdOrganizer := 0
@@ -152,9 +179,16 @@ func ParsingTrade(t Trade, db *sql.DB) error {
 						rows.Close()
 					} else {
 						rows.Close()
-						ContactPerson := strings.TrimSpace(fmt.Sprintf("%s %s %s", t.LastName, t.FirstName, t.MiddleName))
+						ContactPerson := ""
+						Email := ""
+						Phone := ""
+						if len(t.AdditData) > 0 {
+							ContactPerson = strings.TrimSpace(fmt.Sprintf("%s %s %s", t.AdditData[0].LastName, t.AdditData[0].FirstName, t.AdditData[0].MiddleName))
+							Email = t.AdditData[0].Email
+							Phone = t.AdditData[0].Phone
+						}
 						stmt, _ := db.Prepare(fmt.Sprintf("INSERT INTO %sorganizer SET full_name = ?, inn = ?, kpp = ?, post_address = ?, fact_address = ?, contact_email = ?, contact_phone = ?, contact_person = ?", Prefix))
-						res, err := stmt.Exec(Org.OrganizerName, Org.OrganizerINN, Org.OrganizerKPP, Org.OrganizerPostAddress, Org.OrganizerLegalAddress, t.Email, t.Phone, ContactPerson)
+						res, err := stmt.Exec(Org.OrganizerName, Org.OrganizerINN, Org.OrganizerKPP, Org.OrganizerPostAddress, Org.OrganizerLegalAddress, Email, Phone, ContactPerson)
 						stmt.Close()
 						if err != nil {
 							Logging("Ошибка вставки организатора", err)
@@ -234,12 +268,14 @@ func ParsingTrade(t Trade, db *sql.DB) error {
 		}
 	}
 	var EndDate = time.Time{}
-	EndDate = getTimeMoscow(t.Dates[0].AppEndDate)
-	if (EndDate == time.Time{}) {
-		EndDate = getTimeMoscow(t.Dates[0].EndDate)
-	}
 	var BiddingDate = time.Time{}
-	BiddingDate = getTimeMoscow(t.Dates[0].AuctStartDate)
+	if len(t.Dates) > 0 {
+		EndDate = getTimeMoscow(t.Dates[0].AppEndDate)
+		if (EndDate == time.Time{}) {
+			EndDate = getTimeMoscow(t.Dates[0].EndDate)
+		}
+		BiddingDate = getTimeMoscow(t.Dates[0].AuctStartDate)
+	}
 	idTender := 0
 	stmtt, _ := db.Prepare(fmt.Sprintf("INSERT INTO %stender SET id_region = 0, id_xml = ?, purchase_number = ?, doc_publish_date = ?, href = ?, purchase_object_info = ?, type_fz = ?, id_organizer = ?, id_placing_way = ?, id_etp = ?, end_date = ?, cancel = ?, date_version = ?, num_version = ?, notice_version = ?, xml = ?, print_form = ?, bidding_date = ?", Prefix))
 	rest, err := stmtt.Exec(IdXml, TradeId, PublicationDate, Href, PurchaseObjectInfo, typeFz, IdOrganizer, IdPlacingWay, IdEtp, EndDate, cancelStatus, DateUpdated, Version, NoticeVersion, UrlXml, PrintForm, BiddingDate)
@@ -263,88 +299,185 @@ func ParsingTrade(t Trade, db *sql.DB) error {
 		}
 	}
 	idCustomer := 0
-	if t.CustomerId != "" {
-		UrlOrg := fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_firm&id=%s", t.IdOrganizer)
-		org := DownloadPage(UrlOrg)
-		//fmt.Println(org)
-		if org != "" {
-			var Org Organizer
-			if err := xml.Unmarshal([]byte(org), &Org); err != nil {
-				Logging("Ошибка при парсинге строки", err)
-				IdOrganizer = 0
-			} else {
-				if Org.OrganizerINN != "" {
-					stmt, _ := db.Prepare(fmt.Sprintf("SELECT id_customer FROM %sorganizer WHERE inn = ? AND full_name = ?", Prefix))
-					rows, err := stmt.Query(Org.OrganizerINN, Org.OrganizerName)
-					stmt.Close()
-					if err != nil {
-						Logging("Ошибка выполения запроса", err)
-						return err
-					}
-					if rows.Next() {
-						err = rows.Scan(&idCustomer)
-						if err != nil {
-							Logging("Ошибка чтения результата запроса", err)
-							return err
-						}
-						rows.Close()
-					} else {
-						rows.Close()
-						out, err := exec.Command("uuidgen").Output()
-						if err != nil {
-							Logging("Ошибка генерации UUID", err)
-							return err
-						}
-						stmt, _ := db.Prepare(fmt.Sprintf("INSERT INTO %scustomer SET full_name = ?, inn = ?, reg_num = ?", Prefix))
-						res, err := stmt.Exec(Org.OrganizerName, Org.OrganizerINN, out)
+	if len(t.Customers) > 0 {
+		if t.Customers[0].CustomerId != "" {
+			UrlOrg := fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_firm&id=%s", t.IdOrganizer)
+			org := DownloadPage(UrlOrg)
+			//fmt.Println(org)
+			if org != "" {
+				var Org Organizer
+				if err := xml.Unmarshal([]byte(org), &Org); err != nil {
+					Logging("Ошибка при парсинге строки", err)
+					IdOrganizer = 0
+				} else {
+					if Org.OrganizerINN != "" {
+						stmt, _ := db.Prepare(fmt.Sprintf("SELECT id_customer FROM %scustomer WHERE inn = ?", Prefix))
+						rows, err := stmt.Query(Org.OrganizerINN)
 						stmt.Close()
 						if err != nil {
-							Logging("Ошибка вставки организатора", err)
+							Logging("Ошибка выполения запроса", err)
 							return err
 						}
-						id, err := res.LastInsertId()
-						idCustomer = int(id)
+						if rows.Next() {
+							err = rows.Scan(&idCustomer)
+							if err != nil {
+								Logging("Ошибка чтения результата запроса", err)
+								return err
+							}
+							rows.Close()
+						} else {
+							rows.Close()
+							out, err := exec.Command("uuidgen").Output()
+							if err != nil {
+								Logging("Ошибка генерации UUID", err)
+								return err
+							}
+							stmt, _ := db.Prepare(fmt.Sprintf("INSERT INTO %scustomer SET full_name = ?, inn = ?, reg_num = ?, is223=1", Prefix))
+							res, err := stmt.Exec(Org.OrganizerName, Org.OrganizerINN, out)
+							stmt.Close()
+							if err != nil {
+								Logging("Ошибка вставки заказчика", err)
+								return err
+							}
+							id, err := res.LastInsertId()
+							idCustomer = int(id)
+						}
 					}
+				}
+
+			} else {
+				Logging("Получили пустую строку", UrlOrg)
+			}
+
+		} else if t.Customers[0].CustomerName != "" {
+			stmt, _ := db.Prepare(fmt.Sprintf("SELECT id_customer FROM %scustomer WHERE full_name LIKE ? LIMIT 1", Prefix))
+			rows, err := stmt.Query(t.Customers[0].CustomerName)
+			stmt.Close()
+			if err != nil {
+				Logging("Ошибка выполения запроса", err)
+				return err
+			}
+			if rows.Next() {
+				err = rows.Scan(&idCustomer)
+				if err != nil {
+					Logging("Ошибка чтения результата запроса", err)
+					return err
+				}
+				rows.Close()
+			} else {
+				rows.Close()
+				out, err := exec.Command("uuidgen").Output()
+				if err != nil {
+					Logging("Ошибка генерации UUID", err)
+					return err
+				}
+				stmt, _ := db.Prepare(fmt.Sprintf("INSERT INTO %scustomer SET full_name = ?, is223=1, reg_num = ?", Prefix))
+				res, err := stmt.Exec(t.Customers[0].CustomerName, out)
+				stmt.Close()
+				if err != nil {
+					Logging("Ошибка вставки заказчика", err)
+					return err
+				}
+				id, err := res.LastInsertId()
+				idCustomer = int(id)
+			}
+		}
+	}
+	var LotNumber = 1
+	for _, lot := range t.Lots {
+		var MaxPrice float64 = 0
+		if len(lot.Prices) > 0 {
+			for _, v := range lot.Prices {
+				MaxPrice += v
+			}
+		}
+		idLot := 0
+		Currency := ""
+		if len(t.AdditData) > 0 {
+			Currency = t.AdditData[0].Currency
+		}
+		stmtl, _ := db.Prepare(fmt.Sprintf("INSERT INTO %slot SET id_tender = ?, lot_number = ?, max_price = ?, currency = ?", Prefix))
+		resl, err := stmtl.Exec(idTender, LotNumber, MaxPrice, Currency)
+		stmtl.Close()
+		if err != nil {
+			Logging("Ошибка вставки lot", err)
+			return err
+		}
+		id, _ := resl.LastInsertId()
+		idLot = int(id)
+		for _, cf := range lot.Classifiers {
+
+			if strings.Index(cf.Type, "ОКПД2") != -1 {
+				okpd2Code := cf.CatCode
+				okpdName := cf.CatName
+				okpd2GroupCode, okpd2GroupLevel1Code := GetOkpd(okpd2Code)
+				Name := ""
+				if len(lot.LotDataSubj) > 0 {
+					Name = lot.LotDataSubj[0]
+				}
+				if Name == "" && len(lot.LotDataSubj) > 0 {
+					Name = lot.LotDataSubj[0]
+				}
+				if Name == "" {
+					Name = okpdName
+				}
+				stmtr, _ := db.Prepare(fmt.Sprintf("INSERT INTO %spurchase_object SET id_lot = ?, id_customer = ?, okpd2_code = ?, okpd2_group_code = ?, okpd2_group_level1_code = ?, okpd_name = ?, name = ?, quantity_value = ?, customer_quantity_value = ?, okei = ?, price = ?", Prefix))
+				_, errr := stmtr.Exec(idLot, idCustomer, okpd2Code, okpd2GroupCode, okpd2GroupLevel1Code, okpdName, Name, lot.Quantity, lot.Quantity, lot.Okei, MaxPrice)
+				stmtr.Close()
+				if errr != nil {
+					Logging("Ошибка вставки purchase_object", errr)
+					return err
 				}
 			}
 
-		} else {
-			Logging("Получили пустую строку", UrlOrg)
 		}
-
-	} else if t.CustomerName != "" {
-		stmt, _ := db.Prepare(fmt.Sprintf("SELECT id_customer FROM %scustomer WHERE full_name LIKE ? LIMIT 1", Prefix))
-		rows, err := stmt.Query(t.CustomerName)
-		stmt.Close()
-		if err != nil {
-			Logging("Ошибка выполения запроса", err)
-			return err
-		}
-		if rows.Next() {
-			err = rows.Scan(&idCustomer)
-			if err != nil {
-				Logging("Ошибка чтения результата запроса", err)
+		for _, pos := range lot.Positions {
+			stmtr, _ := db.Prepare(fmt.Sprintf("INSERT INTO %spurchase_object SET id_lot = ?, id_customer = ?, name = ?, quantity_value = ?, customer_quantity_value = ?, price = ?, okei = ?", Prefix))
+			_, errr := stmtr.Exec(idLot, idCustomer, pos.Name, pos.Quantity, pos.Quantity, pos.PriceUnit, pos.Unit)
+			stmtr.Close()
+			if errr != nil {
+				Logging("Ошибка вставки purchase_object", errr)
 				return err
 			}
-			rows.Close()
-		} else {
-			rows.Close()
-			out, err := exec.Command("uuidgen").Output()
-			if err != nil {
-				Logging("Ошибка генерации UUID", err)
-				return err
-			}
-			stmt, _ := db.Prepare(fmt.Sprintf("INSERT INTO %scustomer SET full_name = ?, is223=1, reg_num = ?", Prefix))
-			res, err := stmt.Exec(t.CustomerName, out)
-			stmt.Close()
-			if err != nil {
-				Logging("Ошибка вставки организатора", err)
-				return err
-			}
-			id, err := res.LastInsertId()
-			idCustomer = int(id)
 		}
+		for _, appd := range t.AdditData {
+			DelivTerm := strings.TrimSpace(fmt.Sprintf("%s %s %s", appd.PaymentCond, appd.DelivCond, appd.Comments))
+			stmtr, _ := db.Prepare(fmt.Sprintf("INSERT INTO %scustomer_requirement SET id_lot = ?, id_customer = ?, delivery_term = ?, delivery_place = ?", Prefix))
+			_, errr := stmtr.Exec(idLot, idCustomer, DelivTerm, lot.DeliveryPlace)
+			stmtr.Close()
+			if errr != nil {
+				Logging("Ошибка вставки customer_requirement", errr)
+				return err
+			}
+			if appd.Preference != "" {
+				spr, _ := db.Prepare(fmt.Sprintf("INSERT INTO %spreferense SET id_lot = ?, name = ?", Prefix))
+				_, errr := spr.Exec(idLot, appd.Preference)
+				spr.Close()
+				if errr != nil {
+					Logging("Ошибка вставки preferense", errr)
+					return err
+				}
+			}
+			if appd.Requirement != "" {
+				spr, _ := db.Prepare(fmt.Sprintf("INSERT INTO %srequirement SET id_lot = ?, content = ?", Prefix))
+				_, errr := spr.Exec(idLot, appd.Requirement)
+				spr.Close()
+				if errr != nil {
+					Logging("Ошибка вставки requirement", errr)
+					return err
+				}
+			}
+		}
+		LotNumber++
 	}
-	fmt.Println(idCustomer)
+	e := TenderKwords(db, idTender)
+	if e != nil {
+		Logging("Ошибка обработки TenderKwords", e)
+	}
+
+	e1 := AddVerNumber(db, TradeId)
+	if e1 != nil {
+		Logging("Ошибка обработки AddVerNumber", e1)
+	}
 	return nil
 }
