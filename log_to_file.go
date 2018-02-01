@@ -10,6 +10,7 @@ import (
 type Filelog string
 
 var FileLog Filelog
+var FileTmp Filelog
 
 func Logging(args ...interface{}) {
 	file, err := os.OpenFile(string(FileLog), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
@@ -43,5 +44,6 @@ func CreateLogFile() {
 	t := time.Now()
 	ft := t.Format("2006-01-02")
 	FileLog = Filelog(fmt.Sprintf("%s/log_fabrikant_%v.log", dirlog, ft))
+	FileTmp = Filelog(fmt.Sprintf("%s/temp_fabrikant_%v.txt", dirlog, ft))
 
 }
