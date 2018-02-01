@@ -40,7 +40,7 @@ func ParserPage() {
 	} else {
 		Logging("Получили пустую строку", UrlXml)
 	}
-	for (DataTrades != time.Time{}) {
+	/*for (DataTrades != time.Time{}) {
 		Logging("Самая последняя дата в файле", DataTrades)
 		tm := fmt.Sprintf("%02d:%02d", DataTrades.Hour(), DataTrades.Minute())
 		dat := fmt.Sprintf("%02d.%02d.%d", DataTrades.Day(), DataTrades.Month(), DataTrades.Year())
@@ -52,7 +52,7 @@ func ParserPage() {
 			Logging("Получили пустую строку", UrlXml)
 			DataTrades = time.Time{}
 		}
-	}
+	}*/
 }
 func ParsingString(s string) {
 	var FileProt FileProtocols
