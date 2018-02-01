@@ -30,8 +30,9 @@ func ParserPage() {
 	} else {
 		Lastdate := time.Now().AddDate(0, 0, -1*Count)
 		TStr := Lastdate.Format("02.01.2006")
-		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&date=%s", TStr)
+		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&date=%s&time=00:00", TStr)
 	}
+	Logging("Запрошенная страница ", UrlXml)
 	r := DownloadPage(UrlXml)
 	/*_ = ioutil.WriteFile(string(FileTmp), []byte(r), 0644)*/
 	if r != "" {
@@ -39,7 +40,7 @@ func ParserPage() {
 	} else {
 		Logging("Получили пустую строку", UrlXml)
 	}
-	/*for (DataTrades != time.Time{}) {
+	for (DataTrades != time.Time{}) {
 		Logging("Самая последняя дата в файле", DataTrades)
 		tm := fmt.Sprintf("%02d:%02d", DataTrades.Hour(), DataTrades.Minute())
 		dat := fmt.Sprintf("%02d.%02d.%d", DataTrades.Day(), DataTrades.Month(), DataTrades.Year())
@@ -51,7 +52,7 @@ func ParserPage() {
 			Logging("Получили пустую строку", UrlXml)
 			DataTrades = time.Time{}
 		}
-	}*/
+	}
 }
 func ParsingString(s string) {
 	var FileProt FileProtocols
