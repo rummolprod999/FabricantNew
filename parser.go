@@ -162,7 +162,7 @@ func ParsingTrade(t Trade, db *sql.DB) error {
 	NoticeVersion := ""
 	PrintForm := Href
 	IdOrganizer := 0
-	idReg := 0
+	var idReg int
 	if t.IdOrganizer != "" {
 		UrlOrg := fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_firm&id=%s", t.IdOrganizer)
 		org := DownloadPage(UrlOrg)
@@ -212,8 +212,6 @@ func ParsingTrade(t Trade, db *sql.DB) error {
 				if Org.OrganizerLegalAddress != "" {
 					regT := getRegion(Org.OrganizerLegalAddress)
 					stmt, _ := db.Prepare("SELECT id FROM region WHERE name LIKE ?")
-					test := "%" + regT + "%"
-					fmt.Print(test)
 					rows, err := stmt.Query("%" + regT + "%")
 					stmt.Close()
 					if err != nil {
@@ -311,7 +309,7 @@ func ParsingTrade(t Trade, db *sql.DB) error {
 		BiddingDate = getTimeMoscow(t.Dates[0].AuctStartDate)
 	}
 	idTender := 0
-	stmtt, _ := db.Prepare(fmt.Sprintf("INSERT INTO %stender SET id_region = 0, id_xml = ?, purchase_number = ?, doc_publish_date = ?, href = ?, purchase_object_info = ?, type_fz = ?, id_organizer = ?, id_placing_way = ?, id_etp = ?, end_date = ?, cancel = ?, date_version = ?, num_version = ?, notice_version = ?, xml = ?, print_form = ?, bidding_date = ?, id_region = ?", Prefix))
+	stmtt, _ := db.Prepare(fmt.Sprintf("INSERT INTO %stender SET id_xml = ?, purchase_number = ?, doc_publish_date = ?, href = ?, purchase_object_info = ?, type_fz = ?, id_organizer = ?, id_placing_way = ?, id_etp = ?, end_date = ?, cancel = ?, date_version = ?, num_version = ?, notice_version = ?, xml = ?, print_form = ?, bidding_date = ?, id_region = ?", Prefix))
 	rest, err := stmtt.Exec(IdXml, TradeId, PublicationDate, Href, PurchaseObjectInfo, typeFz, IdOrganizer, IdPlacingWay, IdEtp, EndDate, cancelStatus, DateUpdated, Version, NoticeVersion, UrlXml, PrintForm, BiddingDate, idReg)
 	stmtt.Close()
 	if err != nil {
