@@ -119,6 +119,7 @@ func ParsingTrade(t Trade, db *sql.DB) error {
 	}
 	res.Close()
 	var cancelStatus = 0
+	var updated = false
 	if TradeId != "" {
 		stmt, err := db.Prepare(fmt.Sprintf("SELECT id_tender, date_version FROM %stender WHERE purchase_number = ? AND cancel=0 AND type_fz = ?", Prefix))
 		rows, err := stmt.Query(TradeId, typeFz)
@@ -128,6 +129,7 @@ func ParsingTrade(t Trade, db *sql.DB) error {
 			return err
 		}
 		for rows.Next() {
+			updated = true
 			var idTender int
 			var dateVersion time.Time
 			err = rows.Scan(&idTender, &dateVersion)
@@ -318,7 +320,11 @@ func ParsingTrade(t Trade, db *sql.DB) error {
 	}
 	idt, err := rest.LastInsertId()
 	idTender = int(idt)
-	Addtender++
+	if updated {
+		Updatetender++
+	} else {
+		Addtender++
+	}
 	for _, doc := range t.Documents {
 		if doc.Name != "" {
 			stmt, _ := db.Prepare(fmt.Sprintf("INSERT INTO %sattachment SET id_tender = ?, file_name = ?, url = ?, description = ?", Prefix))
