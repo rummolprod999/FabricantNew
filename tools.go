@@ -345,8 +345,8 @@ func getRegion(sp string) string {
 		s = "марий"
 	case strings.Contains(sp, "мордов"):
 		s = "мордов"
-	case strings.Contains(sp, "нижерог"):
-		s = "нижерог"
+	case strings.Contains(sp, "нижегор"):
+		s = "нижегор"
 	case strings.Contains(sp, "оренбур"):
 		s = "оренбур"
 	case strings.Contains(sp, "пензен"):
