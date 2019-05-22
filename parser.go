@@ -19,11 +19,7 @@ func Parser() {
 }
 
 func ParserPage() {
-	defer func() {
-		if p := recover(); p != nil {
-			Logging(p)
-		}
-	}()
+	defer SaveStack()
 	UrlXml = ""
 	if Count == 0 {
 		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions")
@@ -55,21 +51,14 @@ func ParserPage() {
 	}*/
 }
 func ParsingString(s string) {
+	defer SaveStack()
 	var FileProt FileProtocols
 	if err := xml.Unmarshal([]byte(s), &FileProt); err != nil {
 		Logging("Ошибка при парсинге строки", err)
 		DataTrades = time.Time{}
 		return
 	}
-	var Dsn = fmt.Sprintf("%s:%s@/%s?charset=utf8&parseTime=true&readTimeout=600m&maxAllowedPacket=0&timeout=600m&writeTimeout=600m&autocommit=true&loc=Local", UserDb, PassDb, DbName)
-	db, err := sql.Open("mysql", Dsn)
-	defer db.Close()
-	//db.SetMaxOpenConns(2)
-	db.SetConnMaxLifetime(time.Second * 3600)
-	if err != nil {
-		Logging("Ошибка подключения к БД", err)
-		DataTrades = time.Time{}
-	}
+
 	if len(FileProt.TradeList) == 0 {
 		Logging("Нет процедур в файле", UrlXml, s)
 		DataTrades = time.Time{}
@@ -81,7 +70,7 @@ func ParsingString(s string) {
 		DataTrades = time.Time{}
 	}
 	for _, t := range FileProt.TradeList {
-		e := ParsingTrade(t, db)
+		e := ParsingTrade(t)
 		if e != nil {
 			Logging("Ошибка парсера в протоколе", e)
 			continue
@@ -89,7 +78,17 @@ func ParsingString(s string) {
 	}
 }
 
-func ParsingTrade(t Trade, db *sql.DB) error {
+func ParsingTrade(t Trade) error {
+	defer SaveStack()
+	var Dsn = fmt.Sprintf("%s:%s@/%s?charset=utf8&parseTime=true&readTimeout=600m&maxAllowedPacket=0&timeout=600m&writeTimeout=600m&autocommit=true&loc=Local", UserDb, PassDb, DbName)
+	db, err := sql.Open("mysql", Dsn)
+	if err != nil {
+		Logging("Ошибка подключения к БД", err)
+		DataTrades = time.Time{}
+	}
+	defer db.Close()
+	//db.SetMaxOpenConns(2)
+	db.SetConnMaxLifetime(time.Second * 3600)
 	TradeId := t.TradeId
 	if TradeId == "" {
 		TradeId = t.Id
