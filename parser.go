@@ -61,7 +61,7 @@ func ParsingString(s string) {
 		DataTrades = time.Time{}
 		return
 	}
-	var Dsn = fmt.Sprintf("%s:%s@/%s?charset=utf8&parseTime=true&readTimeout=60m&maxAllowedPacket=0&timeout=60m&writeTimeout=60m&autocommit=true&loc=Local", UserDb, PassDb, DbName)
+	var Dsn = fmt.Sprintf("%s:%s@/%s?charset=utf8&parseTime=true&readTimeout=600m&maxAllowedPacket=0&timeout=600m&writeTimeout=600m&autocommit=true&loc=Local", UserDb, PassDb, DbName)
 	db, err := sql.Open("mysql", Dsn)
 	defer db.Close()
 	//db.SetMaxOpenConns(2)

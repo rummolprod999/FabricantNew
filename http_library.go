@@ -25,8 +25,9 @@ func (p *myjar) Cookies(u *url.URL) []*http.Cookie {
 }
 
 func GetPage(url string) string {
+	timeout := time.Duration(600 * time.Second)
 	var s string
-	client := &http.Client{}
+	client := &http.Client{Timeout: timeout}
 	jar := &myjar{}
 	jar.jar = make(map[string][]*http.Cookie)
 	client.Jar = jar
@@ -36,6 +37,8 @@ func GetPage(url string) string {
 		return s
 	}
 	req.SetBasicAuth(User, Pass)
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko)")
+
 	resp, err := client.Do(req)
 	if err != nil {
 		Logging(err)
@@ -55,7 +58,7 @@ func DownloadPage(url string) string {
 	var st string
 	for {
 		//fmt.Println("Start download file")
-		if count > 50 {
+		if count > 5 {
 			Logging(fmt.Sprintf("Не скачали файл за %d попыток %s", count, url))
 			return st
 		}
