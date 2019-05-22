@@ -25,6 +25,7 @@ func (p *myjar) Cookies(u *url.URL) []*http.Cookie {
 }
 
 func GetPage(url string) string {
+	defer SaveStack()
 	timeout := time.Duration(600 * time.Second)
 	var s string
 	client := &http.Client{Timeout: timeout}
