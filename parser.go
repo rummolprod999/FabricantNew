@@ -80,7 +80,7 @@ func ParsingString(s string) {
 
 func ParsingTrade(t Trade) error {
 	defer SaveStack()
-	var Dsn = fmt.Sprintf("%s:%s@/%s?charset=utf8&parseTime=true&readTimeout=600m&maxAllowedPacket=0&timeout=600m&writeTimeout=600m&autocommit=true&loc=Local", UserDb, PassDb, DbName)
+	var Dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=true&readTimeout=600m&maxAllowedPacket=0&timeout=600m&writeTimeout=600m&autocommit=true&loc=Local", UserDb, PassDb, Server, Port, DbName)
 	db, err := sql.Open("mysql", Dsn)
 	if err != nil {
 		Logging("Ошибка подключения к БД", err)
