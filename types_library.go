@@ -70,7 +70,7 @@ type Documentation struct {
 type Lot struct {
 	LotId         int           `xml:"lot_id"`
 	LotDataSubj   []string      `xml:"subject"`
-	Prices        []float64     `xml:"price"`
+	Prices        []string      `xml:"price"`
 	Classifiers   []Classifier  `xml:"classifier"`
 	Quantity      string        `xml:"quantity"`
 	Okei          string        `xml:"unit"`

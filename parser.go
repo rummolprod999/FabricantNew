@@ -6,6 +6,8 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -422,11 +424,15 @@ func ParsingTrade(t Trade) error {
 		}
 	}
 	var LotNumber = 1
+	re := regexp.MustCompile(`\s+`)
 	for _, lot := range t.Lots {
 		var MaxPrice float64 = 0
 		if len(lot.Prices) > 0 {
 			for _, v := range lot.Prices {
-				MaxPrice += v
+				v = re.ReplaceAllString(v, "")
+				v = strings.Replace(v, ",", ".", 8)
+				c, _ := strconv.ParseFloat(v, 32)
+				MaxPrice += c
 			}
 		}
 		idLot := 0
@@ -470,13 +476,16 @@ func ParsingTrade(t Trade) error {
 
 		}
 		for _, pos := range lot.Positions {
-			stmtr, _ := db.Prepare(fmt.Sprintf("INSERT INTO %spurchase_object SET id_lot = ?, id_customer = ?, name = ?, quantity_value = ?, customer_quantity_value = ?, price = ?, okei = ?", Prefix))
-			_, errr := stmtr.Exec(idLot, idCustomer, pos.Name, pos.Quantity, pos.Quantity, pos.PriceUnit, pos.Unit)
-			stmtr.Close()
-			if errr != nil {
-				Logging("Ошибка вставки purchase_object", errr)
-				return err
+			if pos.Name != "" {
+				stmtr, _ := db.Prepare(fmt.Sprintf("INSERT INTO %spurchase_object SET id_lot = ?, id_customer = ?, name = ?, quantity_value = ?, customer_quantity_value = ?, price = ?, okei = ?", Prefix))
+				_, errr := stmtr.Exec(idLot, idCustomer, pos.Name, pos.Quantity, pos.Quantity, pos.PriceUnit, pos.Unit)
+				stmtr.Close()
+				if errr != nil {
+					Logging("Ошибка вставки purchase_object", errr)
+					return err
+				}
 			}
+
 		}
 		for _, appd := range t.AdditData {
 			DelivTerm := strings.TrimSpace(fmt.Sprintf("%s %s %s", appd.PaymentCond, appd.DelivCond, appd.Comments))
