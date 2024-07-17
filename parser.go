@@ -26,7 +26,7 @@ func ParserPage() {
 	if Count == 0 {
 		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&with_meta=1")
 	} else {
-		Lastdate := time.Now().AddDate(0, 0, -1*Count)
+		Lastdate := time.Now()
 		TStr := Lastdate.Format("02.01.2006")
 		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&date=%s&time=12:00&with_meta=1", TStr)
 	}
