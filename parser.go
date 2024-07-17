@@ -24,11 +24,11 @@ func ParserPage() {
 	defer SaveStack()
 	UrlXml = ""
 	if Count == 0 {
-		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions")
+		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&with_meta=1")
 	} else {
 		Lastdate := time.Now().AddDate(0, 0, -1*Count)
 		TStr := Lastdate.Format("02.01.2006")
-		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&date=%s&time=00:00", TStr)
+		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&date=%stime=12:00&with_meta=1", TStr)
 	}
 	Logging("Запрошенная страница ", UrlXml)
 	r := DownloadPage(UrlXml)
