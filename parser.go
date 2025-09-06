@@ -4,15 +4,17 @@ import (
 	"database/sql"
 	"encoding/xml"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var DataTrades = time.Time{}
+var Page = 0
 
 func Parser() {
 	ParserPage()
@@ -26,9 +28,14 @@ func ParserPage() {
 	if Count == 0 {
 		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&with_meta=1")
 	} else {
-		Lastdate := time.Now()
-		TStr := Lastdate.Format("02.01.2006")
-		UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&date=%s&time=12:00&with_meta=1", TStr)
+		if DateStart == "" || DateEnd == "" || TimeEnd == "" || TimeStart == "" {
+			Lastdate := time.Now()
+			TStr := Lastdate.Format("02.01.2006")
+			UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&date=%s&time=12:00&with_meta=1", TStr)
+		} else {
+			UrlXml = fmt.Sprintf("https://www.fabrikant.ru/trade-feed/?action=xml_export_auctions&date=%s&time=%s&date_to=%s&time_to=%s&with_meta=1", DateStart, TimeStart, DateEnd, TimeEnd)
+		}
+
 	}
 	Logging("Запрошенная страница ", UrlXml)
 	r := DownloadPage(UrlXml)
@@ -71,6 +78,7 @@ func ParsingString(s string) {
 	} else {
 		DataTrades = time.Time{}
 	}
+	Page = len(FileProt.TradeList) / 1000
 	for _, t := range FileProt.TradeList {
 		e := ParsingTrade(t)
 		if e != nil {

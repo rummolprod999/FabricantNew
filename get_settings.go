@@ -17,17 +17,25 @@ var User string
 var Pass string
 var DbName string
 var Count int
+var DateStart string
+var DateEnd string
+var TimeStart string
+var TimeEnd string
 
 type Settings struct {
-	Prefix string `xml:"prefix"`
-	Db     string `xml:"db"`
-	UserDb string `xml:"userdb"`
-	PassDb string `xml:"passdb"`
-	Server string `xml:"server"`
-	Port   int    `xml:"port"`
-	User   string `xml:"user"`
-	Pass   string `xml:"pass"`
-	Count  int    `xml:"count"`
+	Prefix    string `xml:"prefix"`
+	Db        string `xml:"db"`
+	UserDb    string `xml:"userdb"`
+	PassDb    string `xml:"passdb"`
+	Server    string `xml:"server"`
+	Port      int    `xml:"port"`
+	User      string `xml:"user"`
+	Pass      string `xml:"pass"`
+	Count     int    `xml:"count"`
+	DateStart string `xml:"date_start"`
+	DateEnd   string `xml:"date_end"`
+	TimeStart string `xml:"time_start"`
+	TimeEnd   string `xml:"time_end"`
 }
 
 func GetSetting() {
@@ -52,4 +60,8 @@ func GetSetting() {
 	User = settings.User
 	Pass = settings.Pass
 	Count = settings.Count
+	DateStart = settings.DateStart
+	DateEnd = settings.DateEnd
+	TimeStart = settings.TimeStart
+	TimeEnd = settings.TimeEnd
 }
